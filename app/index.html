@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>LV copilot</title>
+    <style>
+      body {
+        background: #e8ebd5;
+        font-family: system-ui;
+        font-size: 12px;
+        margin: 0px;
+      }
+      #prompt {
+        background: rgb(233 235 213);
+        border-radius: 4px;
+        padding: 8px;
+        height: 38px;
+        border: 1px solid #c3cc76;
+        width: 100%;
+        font-family: system-ui;
+        font-size: 12px;
+        font-weight: 300;
+      }
+      #btn-submit {
+        border: none;
+        cursor: pointer;
+        background: none;
+        transition: all 0.35s ease-in;
+        margin: 0px;
+        padding: 0px;
+        margin-left: 10px;
+      }
+      #btn-submit:disabled {
+        opacity: 0.3;
+        cursor: default;
+      }
+      #chat-form {
+        align-items: center;
+        margin-top: 12px;
+        display: flex;
+        margin-bottom: 4px;
+      }
+      #message {
+        align-items: flex-end;
+        display: flex;
+        padding-left: 4px;
+        margin-top: 8px;
+        margin-bottom: 8px;
+        gap: 10px;
+        flex-direction: column;
+      }
+      #message li {
+        list-style: none;
+        background: rgb(225 245 133 / 9%);
+        border: 1px solid #c4cc77;
+        color: #1d1d1d;
+        padding: 8px;
+        border-radius: 4px;
+        max-width: fit-content;
+      }
+      #chat-container {
+        border-radius: 4px;
+        flex-direction: column;
+        margin: 10px auto;
+      }
+      #messages-container {
+        overflow-y: auto;
+        height: 410px;
+        padding-right: 8px;
+      }
+      #no-messages {
+        font-size: 12px;
+        text-align: center;
+        font-weight: 300;
+        margin-top: calc(50% + 55px);
+        opacity: 0.5;
+      }
+      .text-left {
+        background: #cbedc7 !important;
+        text-align: left;
+      }
+      .text-right {
+        text-align: right;
+      }
+      .message-title {
+        font-size: 12px;
+        font-weight: 600;
+        color: #000000;
+      }
+      .message-content {
+        margin-top: 4px;
+        margin-bottom: 4px;
+        line-height: 1.2;
+        font-weight: 300;
+        word-break: break-word;
+      }
+      h1 {
+        font-size: 18px;
+      }
+
+      .loader {
+        margin: 0 auto;
+        border-radius: 10px;
+        border: 4px solid transparent;
+        position: relative;
+        padding: 1px;
+        position: relative;
+        top: 4px;
+      }
+      .loader:before {
+        content: "";
+        position: absolute;
+      }
+      .loader .loaderBar {
+        position: absolute;
+        border-radius: 10px;
+        top: 0;
+        right: 100%;
+        bottom: 0;
+        left: 0;
+        width: 0;
+        background: #9db251;
+        width: 0;
+        animation: borealisBar 0.8s ease-out infinite;
+      }
+
+      @keyframes borealisBar {
+        0% {
+          left: 0%;
+          right: 100%;
+          width: 0%;
+        }
+        10% {
+          left: 0%;
+          right: 75%;
+          width: 25%;
+        }
+        90% {
+          right: 0%;
+          left: 75%;
+          width: 25%;
+        }
+        100% {
+          left: 100%;
+          right: 0%;
+          width: 0%;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div id="progress" class="loader">
+      <div class="loaderBar"></div>
+    </div>
+
+    <section id="chat-container" style="display: none">
+      <article id="messages-container">
+        <ul id="message"></ul>
+        <p id="no-messages">No messages yet</p>
+      </article>
+      <form id="chat-form">
+        <textarea id="prompt" placeholder="Type you prompt"></textarea>
+        <button id="btn-submit" type="submit">
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20">
+            <path
+              style="fill: #c3cc76"
+              d="M10 20A10 10 0 1 0 0 10a10 10 0 0 0 10 10zM8.711 4.3l5.7 5.766L8.7 15.711l-1.4-1.422 4.289-4.242-4.3-4.347z"
+            />
+          </svg>
+        </button>
+      </form>
+    </section>
+
+    <script type="module">
+      import * as webllm from "https://esm.run/@mlc-ai/web-llm";
+      const { CreateMLCEngine } = webllm;
+      let engine;
+      let memo = "";
+      const addBotMessage = async (messages) => {
+        const $bot = document.querySelector("#message");
+        const $messageContainer = document.querySelector("#messages-container");
+        const item = document.createElement("li");
+        const title = document.createElement("span");
+        title.classList.add("message-title");
+        title.innerHTML = `Copilot:`;
+        item.appendChild(title);
+        let reply = "";
+        item.innerHTML += `...`;
+        item.classList.add("text-left");
+        $bot.appendChild(item);
+        $messageContainer.scrollTop = $messageContainer.scrollHeight;
+        const chunks = await engine.chat.completions.create({
+          messages,
+          temperature: 1,
+          stream: true,
+          stream_options: { include_usage: true },
+        });
+        for await (const chunk of chunks) {
+          reply += chunk.choices[0]?.delta.content || "";
+          item.innerHTML = `<span class="message-title">Copilot: </span> <p class="message-content">${reply}</p>`;
+          $messageContainer.querySelector("li:last-child").scrollIntoView({
+            behavior: "smooth",
+            block: "end",
+            inline: "nearest",
+          });
+        }
+      };
+
+      const addUserMessage = (message = "") => {
+        const user = document.querySelector("#message");
+        const item = document.createElement("li");
+        const title = document.createElement("span");
+        title.classList.add("message-title");
+        title.innerHTML = `You:`;
+        item.classList.add("text-right");
+        item.appendChild(title);
+        const content = document.createElement("p");
+        content.classList.add("message-content");
+        content.innerText += message;
+        item.append(content);
+        user.appendChild(item);
+      };
+
+      const handleSubmit = async (event) => {
+        event.preventDefault();
+        const $prompt = document.querySelector("#prompt");
+        const $btnSubmit = document.querySelector("#btn-submit");
+        const $noMessages = document.querySelector("#no-messages");
+        $noMessages.style.display = "none";
+        let reply = "";
+        let { value = "" } = $prompt;
+        if (value === "") {
+          $btnSubmit.disabled = true;
+          return;
+        }
+        if (memo) value = value.replace("/code", memo);
+        addUserMessage(value);
+        $prompt.value = "";
+        $btnSubmit.disabled = true;
+        const messages = [
+          { role: "system", content: "Hello word" },
+          { role: "user", content: value },
+        ];
+        await addBotMessage(messages);
+        $btnSubmit.disabled = false;
+        // memo = "";
+      };
+
+      const initialize = async () => {
+        const $progress = document.querySelector("#progress");
+        const $form = document.querySelector("#chat-form");
+        const $container = document.querySelector("#chat-container");
+        try {
+          const vscode = acquireVsCodeApi();
+          window.addEventListener("message", ({ data }) => {
+            const message = data.data;
+            const isCode = data.type === "code";
+            if (isCode) {
+              memo = message;
+            }
+          });
+        } catch (error) {
+          console.log(error);
+        }
+        $form.addEventListener("submit", handleSubmit);
+
+        const initProgressCallback = (initProgress) => {
+          console.log(initProgress);
+        };
+        const selectedModel = "Llama-3-8B-Instruct-q4f32_1-MLC";
+
+        engine = await CreateMLCEngine(
+          selectedModel,
+          { initProgressCallback: initProgressCallback }
+        );
+        $container.style.display = "flex";
+        $progress.style.display = "none";
+      };
+
+      window.addEventListener("DOMContentLoaded", initialize);
+    </script>
+  </body>
+</html>

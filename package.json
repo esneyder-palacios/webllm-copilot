@@ -1,0 +1,52 @@
+{
+  "name": "webllm-copilot",
+  "displayName": "webllm-copilot",
+  "description": "test",
+  "version": "0.0.1",
+  "engines": {
+    "vscode": "^1.90.2"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [
+    "onView:webLLM.panelView"
+  ],
+  "main": "./extension.js",
+  "contributes": {
+    "views": {
+      "explorer": [
+        {
+          "type": "webview",
+          "id": "webLLM.panelView",
+          "name": "LV copilot"
+        }
+      ]
+    },
+    "commands": [
+      {
+        "command": "webllm-copilot.helloWorld",
+        "title": "Hello World"
+      }
+    ]
+  },
+  "scripts": {
+    "lint": "eslint .",
+    "pretest": "npm run lint",
+    "test": "vscode-test"
+  },
+  "devDependencies": {
+    "@types/mocha": "^10.0.6",
+    "@types/node": "20.x",
+    "@types/vscode": "^1.90.0",
+    "@vscode/test-cli": "^0.0.9",
+    "@vscode/test-electron": "^2.4.0",
+    "eslint": "^8.57.0",
+    "typescript": "^5.4.5"
+  },
+  "dependencies": {
+    "@mlc-ai/web-llm": "^0.2.46",
+    "browser-env": "^3.3.0",
+    "node-llama-cpp": "^2.8.11"
+  }
+}
